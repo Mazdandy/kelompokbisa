@@ -1,0 +1,320 @@
+
+<!-- Licensed under a BSD license. See license.html for license -->
+<!DOCTYPE html>
+<html>
+  <head><meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Eye Structure With Three JS</title>
+    <style>
+    html, body {
+        margin: 0;
+        height: 100%;
+    }
+    #c {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+    </style>
+  </head>
+  <body>
+      <div id="dat">
+
+		</div>
+
+    <canvas id="c">
+      
+    </canvas>
+
+  <script type="module">
+import * as THREE from 'https://threejsfundamentals.org/threejs/resources/threejs/r110/build/three.module.js';
+import { GUI } from 'https://threejs.org/examples/jsm/libs/dat.gui.module.js';
+import {OrbitControls} from 'https://threejsfundamentals.org/threejs/resources/threejs/r110/examples/jsm/controls/OrbitControls.js';
+import {OBJLoader2} from 'https://threejsfundamentals.org/threejs/resources/threejs/r110/examples/jsm/loaders/OBJLoader2.js';
+import {MTLLoader} from 'https://threejsfundamentals.org/threejs/resources/threejs/r110/examples/jsm/loaders/MTLLoader.js';
+import {MtlObjBridge} from 'https://threejsfundamentals.org/threejs/resources/threejs/r110/examples/jsm/loaders/obj2/bridge/MtlObjBridge.js';
+var parameters;
+var test;
+var mouse = { x: 0, y: 0 };
+function main() {
+  const canvas = document.querySelector('#c');
+  const renderer = new THREE.WebGLRenderer({canvas});
+
+  const fov = 45;
+  const aspect = 2;  // the canvas default
+  const near = 0.1;
+  const far = 100;
+  const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+  camera.position.set(0, 10, 20);
+
+  const controls = new OrbitControls(camera, canvas);
+  controls.target.set(0, 5, 0);
+  controls.update();
+
+  const scene = new THREE.Scene();
+  const loader = new THREE.TextureLoader();
+  const texture = loader.load('back.jpg');
+  scene.background = texture;
+
+
+
+  {
+    const skyColor = 0xB1E1FF;  // light blue
+    const groundColor = 0xB97A20;  // brownish orange
+    const intensity = 1;
+    const light = new THREE.HemisphereLight(skyColor, groundColor, intensity);
+    scene.add(light);
+  }
+  {
+    const color = 0x000000;
+    const intensity = 0.6;
+    const distance = 100;
+    // const light = new THREE.DirectionalLight(color, intensity);
+    const light = new THREE.PointLight( color, intensity, distance );
+    light.position.set(0, 5, 10);
+    scene.add(light);
+    scene.add(light.target);
+
+  }
+
+  {
+    const mtlLoader = new MTLLoader();
+    mtlLoader.load('eyeball.mtl', (mtlParseResult) => {
+      const objLoader = new OBJLoader2();
+      const materials =  MtlObjBridge.addMaterialsFromMtlLoader(mtlParseResult);
+      objLoader.addMaterials(materials);
+
+      objLoader.load('eyeball.obj', (root) => {
+           test = root;
+           test.position.y = 5;
+           test.scale.x = 2.0;
+           test.scale.y = 2.0;
+           test.scale.z = 2.0;
+           test.name = "nama";
+        scene.add(test);
+      
+      });
+    });
+
+  }
+ 
+  // document.addEventListener('mousedown',onDocumentMouseDown,false);
+	var gui = new GUI();
+  
+  parameters = 
+  {
+    xyzScale:1,
+    xPos: 0, yPos: 0, zPos: 0,
+    xRotate: 0, yRotate: 0, zRotate: 0,
+    xyzRotate: 0
+
+  }
+
+ var folder2 = gui.addFolder('Scale');
+ var objScXYZ = folder2.add(parameters, 'xyzScale').min(1).max(5).step(0.1).listen();
+ var folder3 = gui.addFolder('Rotation');
+ var objRtX = folder3.add( parameters, 'xRotate' ).min(-1).max(1).step(0.01).listen();
+ var objRtY = folder3.add( parameters, 'yRotate' ).min(-1).max(1).step(0.01).listen();
+ var objRtZ = folder3.add( parameters, 'zRotate' ).min(-1).max(1).step(0.01).listen();
+
+
+  objScXYZ.onChange(function (value) {
+    test.scale.x = value;
+    test.scale.y = value;
+    test.scale.z = value;
+  });
+
+   objRtX.onChange(function(value) {
+    test.rotation.x = value;
+  });
+   objRtY.onChange(function(value) {
+    test.rotation.y = value;
+  });
+   objRtZ.onChange(function(value) {
+    test.rotation.z = value;
+  });
+
+
+// var domEvents   = new THREEx.DomEvents(camera, renderer.domElement)
+// // ...
+// domEvents.addEventListener(test, 'click', function(event){
+//     console.log('you clicked on the mesh')
+// }, false)
+
+function onDocumentMouseDown( event ) 
+{
+  // the following line would stop any other event handler from firing
+  // (such as the mouse's TrackballControls)
+  // event.preventDefault();
+  
+  console.log("Click.");
+  
+  // update the mouse variable
+  mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+  mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+  
+  // find intersections
+
+  // create a Ray with origin at the mouse position
+  //   and direction into the scene (camera direction)
+  var vector = new THREE.Vector3( mouse.x, mouse.y, 1 );
+  var ray = new THREE.Raycaster( camera.position, vector.sub( camera.position ).normalize() );
+
+  // create an array containing all objects in the scene with which the ray intersects
+  var intersects = ray.intersectObjects( test );
+  
+  // if there is one (or more) intersections
+  if ( intersects.length > 0 )
+  {
+    console.log("Hit @ " + toString( intersects[0].point ) );
+    // change the color of the closest face.
+    intersects[ 0 ].face.color.setRGB( 0.8 * Math.random() + 0.2, 0, 0 ); 
+    intersects[ 0 ].object.geometry.colorsNeedUpdate = true;
+  }
+  var myI = new Image(300,300);
+  myI.src = 'gambar.jpg';
+  document.write("COBA COBA");
+  x =  document.getElementById("gambar");
+  x.appendChild(myI);
+}
+  function resizeRendererToDisplaySize(renderer) {
+    const canvas = renderer.domElement;
+    const width = canvas.clientWidth-100;
+    const height = canvas.clientHeight-100;
+    const needResize = canvas.width !== width || canvas.height !== height;
+    if (needResize) {
+      renderer.setSize(width, height, false);
+    }
+    return needResize;
+  }
+    
+    
+  function render() {
+
+    if (resizeRendererToDisplaySize(renderer)) {
+      const canvas = renderer.domElement;
+      camera.aspect = canvas.clientWidth / canvas.clientHeight;
+      camera.updateProjectionMatrix();
+    }
+
+    renderer.render(scene, camera);
+
+    requestAnimationFrame(render);
+  }
+
+  requestAnimationFrame(render);
+}
+
+main();
+</script>
+<div id = "gambar">
+  <table border="3">
+  <tbody>
+  <tr>
+    <th colspan="3">
+    Keterangan
+    </th>
+  </tr>
+  <tr>
+    <td><h5>Gambar</h5></td>
+    <td><h5>Nama  </h5></td>
+    <td><h5>Penjelasan</h5></td>
+  </tr>
+  <tr>
+    <td rowspan="6">
+      <img src="image/iris.jpg" height="300" width="500">
+    </td><td>
+      Procc Cilliares
+    </td><td>
+      SEBAGAI LIPATAN2 TIDAK TERATUR DENGAN TONJOLAN RADIER LIG. SUSPENSORIUM ( ZONULA ZINII) LENSA MELEKAT PADA ALUR ATR PROSESUS CILIARIS
+    </td>
+  </tr>
+  <tr>
+    <td>
+      Plicae CIlliares
+    </td><td>
+      
+    </td>
+  </tr>
+  <tr>
+    <td>
+      Margo Pupillaris
+    </td><td>
+      batas dalam iris yang membentuk tepi pupil.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      Corpus Ciliare
+    </td><td>
+      menjaga agar lensa tetap pada tempatnya, mengubah bentuk lensa sehingga cahaya dapat difokuskan pada retina, dan untuk menghasilkan cairan beranda depan (cairan yang menyebabkan mata dapat mempertahankan bentuknya).
+    </td>
+  </tr>
+  <tr>
+    <td>
+      Iris
+    </td><td>
+        berfungsi mengatur sejumlah cahaya yang masuk ke mata dan menyesuaikan dengan bukaan pupi  
+    </td>
+  </tr>
+  <tr>
+    <td>
+      Cornea
+    </td><td>
+      mencegah kotoran dan benda asing serta menyaring sinar UV yang masuk ke mata
+    </td>
+  </tr>
+  <tr>
+    <td rowspan="4">
+      <img src="image/pupil.jpg" height="300" width="500">
+    </td><td>
+      Lensa
+    </td><td>
+      adalah mengatur fokus cahaya, sehingga cahaya jatuh tepat pada bintik kuning retina yang dibantu oleh otot siliaris dan ligamen supresor. Untuk melihat objek yang jauh (cahaya datang dari jauh)
+    </td>
+  </tr>
+  <tr>
+    <td>
+      Pupilia
+    </td><td>
+      menentukan kuantitas cahaya yang masuk ke bagian mata yang lebih dalam
+    </td>
+  </tr>
+  <tr>
+    <td>
+      Retikulum
+    </td><td>
+      Mendukung sintesis protein dan juga untuk menyalurkan bahan genetika yang berada di antara inti sel dengan sitoplasma.
+    </td>
+  </tr>
+  <tr>
+    <td>
+      Pars Indica Retinae
+    </td><td>
+      Permukaan posterior dari proses siliaris ditutupi oleh lapisan bilaminar dari sel-sel pigmen hitam, yang diteruskan ke depan dari retina,
+    </td>
+  </tr>
+  <tr>
+    <td rowspan="4">
+      <img src="image/cornea.jpg" height="300" width="500">
+    </td><td>
+      Cornea
+    </td><td>
+      mencegah kotoran dan benda asing serta menyaring sinar UV yang masuk ke mata
+    </td>
+  </tr>
+<tr>
+    <td>
+      Choroidea
+    </td><td>
+       berfungsi mengalirkan oksigen dan nutrisi ke retina.
+    </td>
+  </tr>
+
+  </tbody>
+        
+  </table>
+</div>
+</body>
+</html>
